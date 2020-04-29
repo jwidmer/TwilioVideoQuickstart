@@ -1,0 +1,136 @@
+﻿@page
+@model AudienceModel
+@{
+    ViewData["Title"] = "Audience";
+}
+
+<h3>AUDIENCE</h3>
+
+<div id="remote-media-div"></div>
+<div class="alert alert-danger" id="videoError"></div>
+
+
+@section Scripts {
+    <script src="//media.twiliocdn.com/sdk/js/video/releases/2.3.0/twilio-video.min.js"></script>
+
+    <script type="text/javascript">
+        //See https://developers.google.com/web/updates/2017/09/autoplay-policy-changes
+        // and chrome://media-engagement/
+        // for why video autoplay will not work on Chrome (at first) if not in debug console.
+
+        const video = Twilio.Video;
+        console.log(video);
+
+        $('document').ready(function () {
+
+            $.ajax(
+                {
+                    type: "GET",
+                    url: "/api/accesstoken",
+                    dataType: "json"
+                }
+            )
+                .done(function (data) {
+                    console.log(data.accessToken);
+                    loadVideo(data.accessToken);
+                })
+                .fail(function (e, e1, e2) {
+                    console.log(e);
+                });
+        });
+
+
+        function loadVideo(token) {
+
+            var connectOptions = {
+                name: 'my-room',
+                audio: false,
+                video: false,
+
+            };
+
+            video.connect(token, connectOptions)
+                .then(room => {
+                    console.log('Connected to Room "%s"', room.name);
+
+                    room.participants.forEach(participantConnected);
+                    //room.participants.forEach(participant => participantConnected(participant));
+                    //room.participants.forEach(function (participant) { participantConnected(participant); });
+
+                    room.on('participantConnected', participantConnected);
+
+                    //room.on('participantDisconnected', participantDisconnected);
+                    room.once('disconnected', error => room.participants.forEach(participantDisconnected));
+
+                    //var container = $("#remote-media-div")[0];
+                    //video.tracks.forEach(function (track) {
+                    //    console.log(track);
+                    //    container.appendChild(track.attach());
+                    //});
+
+
+
+                });
+
+            function participantConnected(participant) {
+                console.log('Participant "%s" connected', participant.identity);
+
+                //const div = document.createElement('div');
+                //div.id = participant.sid;
+                //div.innerText = participant.identity;
+                //document.body.appendChild(div);
+
+
+                //participant.tracks.forEach(publication => {
+                //    console.log("participant.tracks");
+                //    console.log(publication);
+                //    console.log(publication.isSubscribed);
+                //    if (publication.isSubscribed) {
+                //        const track = publication.track;
+                //        console.log(track);
+                //        document.getElementById('remote-media-div').appendChild(track.attach());
+                //    }
+                //});
+
+                participant.on('trackSubscribed', track => {
+                    console.log("participant.on.trackSubscribed");
+                    console.log(track);
+
+                    track.on("disabled", track => {
+                        console.log('track disabled');
+                    });
+                    track.on("enabled", track => {
+                        console.log('track enabled');
+                    });
+                    track.on("started", track => {
+                        console.log('track started');
+                    });
+
+                    //document.getElementById('remote-media-div').appendChild(track.attach());
+                    //$("#remote-media-div")[0].appendChild(track.attach());
+
+                    //if (track.kind === "video") {
+                        var media = track.attach();
+                        $("#remote-media-div").append(media);
+                    //}
+                });
+                participant.on('trackUnsubscribed', trackUnsubscribed);
+
+            }
+
+            function participantDisconnected(participant) {
+                console.log('Participant "%s" disconnected', participant.identity);
+                //document.getElementById(participant.sid).remove();
+            }
+
+
+            function trackUnsubscribed(track) {
+                console.log("trackUnsubscribed");
+                track.detach().forEach(element => element.remove());
+            }
+
+
+
+        }
+    </script>
+}

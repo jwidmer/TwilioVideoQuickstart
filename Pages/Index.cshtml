@@ -1,0 +1,127 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">HOST 33</h1>
+
+    <div id="local-media"></div>
+
+    <div id="participant-media"></div>
+
+    <div class="alert alert-danger" id="videoError"></div>
+</div>
+
+
+@section Scripts {
+    <script src="//media.twiliocdn.com/sdk/js/video/releases/2.3.0/twilio-video.min.js"></script>
+
+    <script type="text/javascript">
+        const video = Twilio.Video;
+        console.log(video);
+
+        $('document').ready(function () {
+
+            $.ajax(
+                {
+                    type: "GET",
+                    url: "/api/accesstoken",
+                    dataType: "json"
+                }
+            )
+            .done(function (data) {
+                console.log(data.accessToken);
+                loadVideo(data.accessToken);
+            })
+            .fail(function (e, e1, e2) {
+                console.log(e);
+            });
+        });
+
+        function loadVideo(token) {
+            var connectOptions = {
+                name: 'my-room',
+                //logLevel: 'debug'
+            };
+
+
+            video.connect(token, connectOptions)
+                .then(room => {
+                    console.log('Connected to Room "%s"', room.name);
+
+                    room.participants.forEach(participantConnected);
+                    room.on('participantConnected', participantConnected);
+
+                    room.on('participantDisconnected', participantDisconnected);
+                    room.once('disconnected', error => room.participants.forEach(participantDisconnected));
+
+                    var localVideoTrack = video.createLocalVideoTrack();
+                    localVideoTrack.then(track => {
+                        const localMediaContainer = document.getElementById('local-media');
+                        localMediaContainer.appendChild(track.attach());
+                    })
+
+                    var localTracksPromise = video.createLocalTracks({
+                        audio: true,
+                        video: { width: 640 }
+                    });
+                    localTracksPromise
+                        .then(function (tracks) {
+                            console.log(tracks);
+                            room.tracks = tracks;
+
+                            var container = $("#participant-media")[0];
+                            tracks.forEach(function (track) {
+                                container.appendChild(track.attach());
+                            });
+
+                        }
+                        );
+
+
+
+                })
+                .catch(function (errorObj) {
+                    console.log(errorObj.message);
+                    $("#videoError").html(errorObj.message);
+                });
+
+            function participantConnected(participant) {
+                console.log('Participant "%s" connected', participant.identity);
+
+                const div = document.createElement('div');
+                div.id = participant.sid;
+                div.innerText = participant.identity;
+
+                participant.on('trackSubscribed', track => trackSubscribed(div, track));
+                participant.on('trackUnsubscribed', trackUnsubscribed);
+
+                participant.tracks.forEach(publication => {
+                    if (publication.isSubscribed) {
+                        trackSubscribed(div, publication.track);
+                    }
+                });
+
+                document.body.appendChild(div);
+            }
+
+            function participantDisconnected(participant) {
+                console.log('Participant "%s" disconnected', participant.identity);
+                document.getElementById(participant.sid).remove();
+            }
+
+            function trackSubscribed(div, track) {
+                console.log("trackSubscribed");
+                div.appendChild(track.attach());
+            }
+
+            function trackUnsubscribed(track) {
+                console.log("trackUnsubscribed");
+                track.detach().forEach(element => element.remove());
+            }
+        }
+
+    </script>
+}
