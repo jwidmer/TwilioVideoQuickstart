@@ -1,2 +1,2 @@
-# AzureCosmosDbBlogExample
-Code for the article https://docs.microsoft.com/en-us/azure/cosmos-db/how-to-model-partition-example
+# TwilioVideoQuickstart
+Using the Twilio Programmable Video Javascript SDK (twilio-video.js) to demo presenter/audience capabilities.  Very messy sample code.
